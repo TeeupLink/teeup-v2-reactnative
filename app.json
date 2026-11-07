@@ -23,7 +23,7 @@
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": false,
       "package": "com.pixencrew.teeup",
-      "versionCode": 5
+      "versionCode": 6
     },
     "web": {
       "bundler": "metro",
@@ -65,6 +65,10 @@
         {
           "ios": {
             "useFrameworks": "static"
+          },
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "extraProguardRules": "# R8(난독화·축소) 룰.\n#\n# 2026-11-07 에 R8 을 처음 켰다 (android.enableMinifyInReleaseBuilds=true).\n# 여기 있는 -keep 은 \"없으면 릴리스 빌드에서만 터지는\" 것들을 막는다.\n# React Native 는 클래스를 이름으로 찾아 쓰는 곳이 많아서, 이름이 바뀌면\n# 빌드는 성공하고 실행 중에 조용히 실패한다. 그래서 의도적으로 넉넉하게 잡았다.\n# 크기를 더 줄이려면 한 덩어리씩 지우고 실기기에서 확인하는 식으로만 손댈 것.\n\n# --- 네이티브 메서드를 가진 클래스는 이름이 바뀌면 JNI 연결이 끊긴다 ---\n-keepclasseswithmembernames class * { native <methods>; }\n\n# --- React Native 코어: 브리지·터보모듈은 리플렉션으로 찾는다 ---\n-keep,includedescriptorclasses class com.facebook.react.bridge.** { *; }\n-keep,includedescriptorclasses class com.facebook.react.turbomodule.** { *; }\n-keep class com.facebook.react.bridgeless.** { *; }\n-keep class com.facebook.fbreact.specs.** { *; }\n-keep class com.facebook.jni.** { *; }\n-keep class com.facebook.hermes.** { *; }\n\n# RN 이 쓰는 표식들. 이게 붙은 멤버는 자바 쪽에서 호출처가 안 보인다.\n-keepclassmembers class * { @com.facebook.proguard.annotations.DoNotStrip *; }\n-keepclassmembers class * { @com.facebook.proguard.annotations.DoNotStripAny *; }\n-keepclassmembers class * { @com.facebook.react.bridge.ReactMethod *; }\n-keep @com.facebook.react.module.annotations.ReactModule class * { *; }\n\n# 네이티브 모듈·뷰매니저·패키지는 등록이 이름 기반이다.\n-keep class * extends com.facebook.react.bridge.NativeModule { *; }\n-keep class * extends com.facebook.react.bridge.BaseJavaModule { *; }\n-keep class * extends com.facebook.react.uimanager.ViewManager { *; }\n-keep class * extends com.facebook.react.ReactPackage { *; }\n\n# --- 자기 ProGuard 룰이 없는 네이티브 모듈들 ---\n# (node_modules 를 훑어 consumer-rules.pro 가 없는 것만 골랐다)\n-keep class com.swmansion.** { *; }                    # reanimated / screens / gesture-handler / worklets\n-keep class com.th3rdwave.safeareacontext.** { *; }    # react-native-safe-area-context\n-keep class com.reactnativecommunity.** { *; }         # async-storage / picker\n-keep class com.reactcommunity.rndatetimepicker.** { *; }\n-keep class com.reactnativegooglesignin.** { *; }\n-keep class com.oblador.vectoricons.** { *; }\n-keep class expo.modules.** { *; }                     # Expo 모듈은 코틀린 리플렉션을 쓴다\n\n# --- Firebase 메시징: 서비스가 매니페스트로만 참조된다 ---\n-keep class io.invertase.firebase.** { *; }\n-keep class com.google.firebase.** { *; }\n-keep class com.google.android.gms.** { *; }\n\n# --- 선택적 의존성에 대한 경고 억제 (없어도 동작하는 것들) ---\n-dontwarn com.facebook.react.**\n-dontwarn expo.modules.**\n-dontwarn io.invertase.firebase.**\n\n# --- 크래시 스택에 줄 번호를 남긴다 (mapping.txt 와 함께 써야 의미가 있다) ---\n-keepattributes SourceFile,LineNumberTable\n-renamesourcefileattribute SourceFile\n"
           }
         }
       ],
