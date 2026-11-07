@@ -180,7 +180,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST \
 배포 절차:
 
 ```bash
-ssh ejsv                                        # ejsv.jungeui.net:9997
+ssh ejsv                                        # ejsv.justicelab.ai.kr:9997
 cd /home/ejsv/projects/golf/teeup-v2-backend
 git pull origin dev
 sudo systemctl restart teeup-v2
