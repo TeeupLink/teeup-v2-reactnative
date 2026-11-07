@@ -87,7 +87,10 @@ export ANDROID_UPLOAD_STORE_PASSWORD
 export ANDROID_UPLOAD_KEY_ALIAS
 export ANDROID_UPLOAD_KEY_PASSWORD
 
-EAS_BUILD_PLATFORM=android expo prebuild --platform android
+# expo 는 전역 설치돼 있지 않다. npm run 으로 돌릴 때는 npm 이
+# node_modules/.bin 을 PATH 에 넣어주지만 이 스크립트는 직접 실행되므로
+# npx 로 로컬 CLI 를 집어줘야 한다.
+EAS_BUILD_PLATFORM=android npx expo prebuild --platform android
 cd android
 EAS_BUILD_PLATFORM=android ./gradlew :app:bundleRelease
 
