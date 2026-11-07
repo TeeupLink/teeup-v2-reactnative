@@ -96,7 +96,7 @@ android {
         applicationId 'com.pixencrew.teeup'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
+        versionCode 6
         versionName "1.0.2"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
@@ -129,6 +129,13 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             def enablePngCrunchInRelease = findProperty('android.enablePngCrunchInReleaseBuilds') ?: 'true'
             crunchPngs enablePngCrunchInRelease.toBoolean()
+            // 네이티브(.so) 크래시를 Play Console 에서 사람이 읽을 수 있게 심볼을 담는다.
+            // New Architecture 를 쓰므로 네이티브 프레임이 많고, 심볼이 없으면
+            // 스택에 주소값만 남는다. 사용자 다운로드 크기는 늘지 않는다 -
+            // 심볼은 AAB 에만 실려 Play 가 따로 보관한다.
+            ndk {
+                debugSymbolLevel 'SYMBOL_TABLE'
+            }
         }
     }
     packagingOptions {
