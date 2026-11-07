@@ -9,10 +9,12 @@ import {
     TextInput,
     View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Modal from '@/components/ui/Modal';
+import ScreenHeader from '@/components/ui/ScreenHeader';
 import { authApi } from '@/lib/api/api';
 import {
     createCloseWithdrawModalHandler,
@@ -73,7 +75,8 @@ export default function WithdrawScreen() {
   );
 
   return (
-    <View style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea}>
+      <ScreenHeader title="회원 탈퇴" />
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.warningCard}>
           <View style={styles.warningHeader}>
@@ -150,7 +153,7 @@ export default function WithdrawScreen() {
         <Text style={styles.modalText}>회원 탈퇴 후에는 모든 데이터가 삭제됩니다.</Text>
         <Text style={styles.modalText}>정말로 탈퇴하시겠습니까?</Text>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 

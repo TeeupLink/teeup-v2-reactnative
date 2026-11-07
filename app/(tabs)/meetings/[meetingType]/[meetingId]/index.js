@@ -22,12 +22,14 @@ import SocialJoinModal from '@/components/meetings/SocialJoinModal';
 import TeamEditorModal from '@/components/meetings/TeamEditorModal';
 import TeamFormationModal from '@/components/meetings/TeamFormationModal';
 import TeamFormationPreviewModal from '@/components/meetings/TeamFormationPreviewModal';
+import ModerationMenu from '@/components/moderation/ModerationMenu';
 import AppToast from '@/components/ui/AppToast';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Modal from '@/components/ui/Modal';
 import ScreenHeader from '@/components/ui/ScreenHeader';
 import { meetingDetailTabs } from '@/constants/meetingConstants';
+import { useBlockedUsers } from '@/context/BlockContext';
 import { meetingsApi, mypageApi, roundsApi, socialsApi, usersApi } from '@/lib/api/api';
 import {
   createAutoFormTeamsHandler,
@@ -205,6 +207,7 @@ function getToneStyle(tone) {
 
 export default function MeetingDetailScreen() {
   const router = useRouter();
+  const { isBlocked } = useBlockedUsers();
   const { meetingType, meetingId } = useLocalSearchParams();
   const meetingTypeValue = Array.isArray(meetingType) ? meetingType[0] : meetingType;
   const meetingIdValue = Array.isArray(meetingId) ? meetingId[0] : meetingId;
@@ -861,7 +864,14 @@ export default function MeetingDetailScreen() {
   );
   const openHistory = useMemo(() => () => setHistoryOpen(true), []);
   const closeHistory = useMemo(() => () => setHistoryOpen(false), []);
-  const openBatchFormation = useMemo(() => () => setBatchFormationOpen(true), []);
+  // 팀 편성 모달을 내리고 연다. iOS 는 모달 위에 모달을 띄우면 아무 일도 안 생긴다.
+  const openBatchFormation = useMemo(
+    () => () => {
+      setTeamFormationOpen(false);
+      setBatchFormationOpen(true);
+    },
+    []
+  );
   const closeBatchFormation = useMemo(() => () => setBatchFormationOpen(false), []);
   const closeTeamPreview = useMemo(
     () => () => {
@@ -918,6 +928,8 @@ export default function MeetingDetailScreen() {
           teamSize: size,
         });
         setPreviewTeams(result.teams || []);
+        // 일괄 비교 모달을 내리고 미리보기를 연다. 모달 위에 모달은 안 뜬다.
+        setBatchFormationOpen(false);
         setTeamPreviewOpen(true);
       },
     [meeting?.team_formation_mode, meeting?.team_size]
@@ -927,6 +939,8 @@ export default function MeetingDetailScreen() {
     () =>
       (item) => {
         setPreviewTeams(item.teams || []);
+        // 히스토리 모달을 내리고 미리보기를 연다. 모달 위에 모달은 안 뜬다.
+        setHistoryOpen(false);
         setTeamPreviewOpen(true);
       },
     []
@@ -1538,6 +1552,7 @@ export default function MeetingDetailScreen() {
     const roleLabel = isOrganizerParticipant ? '개설자' : '';
     const guestLabel = isGuest ? '게스트' : '';
 
+    if (!isGuest && !isMine && isBlocked(participantUserId)) return null;
     return (
       <View key={participantData.id ?? index} style={styles.participantCard}>
         <View style={styles.participantTopRow}>
@@ -1592,10 +1607,21 @@ export default function MeetingDetailScreen() {
               ) : null}
             </View>
           </View>
+          {!isGuest && !isMine && participantUserId != null ? (
+            <ModerationMenu
+              report={{
+                targetType: 'USER',
+                targetId: participantUserId,
+                targetName: participantData.user_name ?? participantData.name,
+              }}
+              blockUser={{ userId: participantUserId, userName: participantData.user_name ?? participantData.name }}
+            />
+          ) : null}
         </View>
       </View>
     );
   }, [
+    isBlocked,
     currentUserId,
     currentUserGender,
     userInfo?.gender,
@@ -1679,7 +1705,24 @@ export default function MeetingDetailScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, styles.safeAreaRelative]}>
-      <ScreenHeader title="모임 상세" />
+      <ScreenHeader
+        title="모임 상세"
+        rightAction={meeting?.id ? (
+          <ModerationMenu
+            report={{
+              targetType: 'MEETING',
+              targetId: meeting.id,
+              targetName: meeting?.name || meeting?.meeting_name,
+            }}
+            blockUser={
+              (meeting?.created_by ?? meeting?.creator_id) != null
+                ? { userId: meeting.created_by ?? meeting.creator_id, userName: meeting?.created_by_name }
+                : null
+            }
+            onBlocked={() => router.back()}
+          />
+        ) : null}
+      />
       <ScrollView contentContainerStyle={styles.container}>
 
         <Card style={styles.card}>

@@ -24,11 +24,9 @@ import { base, tokens } from '@/styles/style';
 const INQUIRY_TYPES = [
   { id: 'GENERAL', name: '일반 문의' },
   { id: 'TECHNICAL', name: '기술 문의' },
-  { id: 'BILLING', name: '결제/청구 문의' },
   { id: 'FEATURE_REQUEST', name: '기능 요청' },
   { id: 'BUG_REPORT', name: '버그 신고' },
   { id: 'ACCOUNT', name: '계정 문의' },
-  { id: 'PAYMENT', name: '결제 문의' },
 ];
 
 const INQUIRY_TYPE_IDS = new Set(INQUIRY_TYPES.map((t) => t.id));

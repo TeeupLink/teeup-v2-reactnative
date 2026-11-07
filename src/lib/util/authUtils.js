@@ -4,12 +4,23 @@ import { googleAuthConfig, googleNativeConfig } from '../../constants/authConsta
 import { authApi } from '../api/api';
 import { tokenStorage } from '../tokenStorage';
 
+let AppleAuthentication;
+if (Platform.OS === 'ios') {
+  AppleAuthentication = require('expo-apple-authentication');
+}
+
 let GoogleSignin;
 if (Platform.OS !== 'web') {
   console.log('GoogleSignin.configure webClientId:', googleNativeConfig.webClientId);
   GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
   GoogleSignin.configure({
     webClientId: googleNativeConfig.webClientId,
+    // Firebase 프로젝트(668486530275)와 OAuth 클라이언트 프로젝트(791884628850)가
+    // 서로 달라 GoogleService-Info.plist에 CLIENT_ID가 없다.
+    // 따라서 iOS 클라이언트 ID를 env에서 직접 주입해야 한다.
+    ...(Platform.OS === 'ios' && googleAuthConfig.clientId
+      ? { iosClientId: googleAuthConfig.clientId }
+      : {}),
     offlineAccess: true,
     scopes: ['openid', 'profile', 'email'],
   });
@@ -107,6 +118,69 @@ export async function signInWithGoogle({
     setErrorMessage(message);
   } finally {
     await tokenStorage.clearOauthState();
+    setLoading(false);
+  }
+}
+
+/**
+ * Sign in with Apple (iOS 전용)
+ *
+ * Apple은 사용자 이름을 '최초 1회' 인증에서만 내려주므로, 그때 받은 이름을
+ * 서버로 함께 전달한다. 두 번째 로그인부터 fullName은 null이다.
+ */
+export async function signInWithApple({
+  refreshAuth,
+  router,
+  setLoading,
+  setErrorMessage,
+}) {
+  setErrorMessage('');
+  setLoading(true);
+
+  try {
+    if (Platform.OS !== 'ios' || !AppleAuthentication) {
+      throw new Error('Apple 로그인은 iOS에서만 지원됩니다.');
+    }
+
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+    });
+
+    if (!credential?.identityToken) {
+      throw new Error('Apple 로그인에서 identityToken을 받지 못했습니다.');
+    }
+
+    const { givenName, familyName } = credential.fullName ?? {};
+    // 한국어 이름은 성+이름 순서가 자연스럽다.
+    const fullName = [familyName, givenName].filter(Boolean).join('') || null;
+
+    await authApi.appleLogin({
+      identityToken: credential.identityToken,
+      fullName,
+    });
+
+    if (refreshAuth) {
+      await refreshAuth();
+    }
+
+    if (router) {
+      router.replace('/app');
+    }
+  } catch (error) {
+    // 사용자가 시트를 직접 닫은 경우는 에러로 표시하지 않는다.
+    if (error?.code === 'ERR_REQUEST_CANCELED') {
+      return;
+    }
+
+    console.error('Apple sign-in failed:', {
+      code: error?.code,
+      message: error?.message,
+    });
+    setErrorMessage(error?.message || 'Apple 로그인에 실패했습니다.');
+  } finally {
     setLoading(false);
   }
 }

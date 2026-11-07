@@ -209,6 +209,15 @@ const resolveModulePath = (fromFile, source) => {
     if (fs.existsSync(candidate)) return { modulePath: candidate, isLocal: true };
   }
 
+  // Metro 는 .native/.web 접미사를 자동으로 골라 준다.
+  // homeBannerSlides.native.js 처럼 플랫폼별 파일만 있는 모듈이 있다.
+  for (const platform of ['.native', '.web', '.ios', '.android']) {
+    for (const ext of validExtensions) {
+      const candidate = `${basePath}${platform}${ext}`;
+      if (fs.existsSync(candidate)) return { modulePath: candidate, isLocal: true };
+    }
+  }
+
   if (fs.existsSync(basePath) && fs.statSync(basePath).isDirectory()) {
     for (const ext of validExtensions) {
       const candidate = path.join(basePath, `index${ext}`);
@@ -271,7 +280,8 @@ const getExportInfo = (filePath, stack = new Set()) => {
     info.hasDefault = true;
   }
 
-  const declRegex = /export\s+(?:const|let|var|function|class)\s+([A-Za-z0-9_$]+)/g;
+  // export async function / export function* 도 잡는다.
+  const declRegex = /export\s+(?:async\s+)?(?:const|let|var|function\*?|class)\s+([A-Za-z0-9_$]+)/g;
   for (const match of content.matchAll(declRegex)) {
     info.named.add(match[1]);
   }

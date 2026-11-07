@@ -9,7 +9,7 @@ import { backOrHome } from '@/lib/navigation/cappedHistory';
 import { colors } from '@/styles/colors';
 import { tokens } from '@/styles/style';
 
-export default function ScreenHeader({ title, onBack }) {
+export default function ScreenHeader({ title, onBack, rightAction }) {
   const router = useRouter();
   const metrics = useOptionalResponsiveMetrics();
   const uiScale = metrics?.uiScale ?? 1;
@@ -39,7 +39,9 @@ export default function ScreenHeader({ title, onBack }) {
         <FontAwesome5 name="arrow-left" size={iconSz} color={colors.neutral[700]} />
       </Pressable>
       <Text style={[styles.title, { fontSize: titleSize }]}>{title}</Text>
-      <View style={[styles.backButton, { width: backBox, height: backBox }]} />
+      <View style={[styles.backButton, { width: backBox, height: backBox }]}>
+        {rightAction ?? null}
+      </View>
     </View>
   );
 }

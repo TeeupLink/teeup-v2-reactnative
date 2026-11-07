@@ -551,7 +551,9 @@ export default function TeamEditorModal({
       <Modal
         maxContentWidth={tokens.layout.teamEditorModalMaxPreferred}
         maxContentHeightVh={90}
-        visible={isVisible}
+        /* 확인 모달을 띄울 때는 이쪽을 내린다. iOS 는 모달 위에 모달을
+           띄우면 아무 일도 일어나지 않는다. */
+        visible={isVisible && !deleteConfirmState.open && !closeConfirmOpen}
         title="팀 편성 수정"
         onClose={handleRequestClose}
         scroll={false}

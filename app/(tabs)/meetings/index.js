@@ -17,6 +17,7 @@ import Button from '@/components/ui/Button';
 import PaginationNav from '@/components/ui/PaginationNav';
 import { meetingTabs, meetingValidTabs } from '@/constants/meetingConstants';
 import { useAuth } from '@/context/AuthContext';
+import { useBlockedUsers } from '@/context/BlockContext';
 import { meetingsApi } from '@/lib/api/api';
 import {
   createCreateMeetingHandler,
@@ -439,11 +440,16 @@ export default function MeetingsScreen() {
     participatingEndDate,
   });
 
-  const currentMeetings = activeTab === 'rounding'
+  const { isBlocked } = useBlockedUsers();
+  const currentMeetingsRaw = activeTab === 'rounding'
     ? roundingMeetings
     : activeTab === 'social'
       ? socialMeetings
       : participatingMeetings;
+  // 차단한 사용자가 주최한 모임은 목록에서 숨긴다
+  const currentMeetings = currentMeetingsRaw.filter(
+    (m) => !isBlocked(m?.created_by ?? m?.creator_id),
+  );
   const currentPage = activeTab === 'rounding'
     ? roundingPage
     : activeTab === 'social'

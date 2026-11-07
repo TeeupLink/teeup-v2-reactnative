@@ -15,6 +15,7 @@
       "backgroundColor": "#ffffff"
     },
     "android": {
+      "runtimeVersion": "1.0",
       "adaptiveIcon": {
         "foregroundImage": "./public/icons/icon-1024-transparent.png",
         "backgroundColor": "#ffffff"
@@ -22,7 +23,7 @@
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": false,
       "package": "com.pixencrew.teeup",
-      "versionCode": 3
+      "versionCode": 5
     },
     "web": {
       "bundler": "metro",
@@ -30,13 +31,63 @@
       "favicon": "./public/icons/icon-600-transparent-full.png"
     },
     "ios": {
-      "bundleIdentifier": "com.pixencrew.teeup"
+      "runtimeVersion": "1.0.1",
+      "bundleIdentifier": "com.pixencrew.teeup",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "usesAppleSignIn": true,
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleName": "티업링크"
+      }
     },
     "plugins": [
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "origin": "https://www.teeup.kr"
+        }
+      ],
       "expo-notifications",
-      "@react-native-google-signin/google-signin"
+      "expo-apple-authentication",
+      [
+        "@react-native-firebase/app",
+        {
+          "ios": {
+            "disableSPM": true
+          }
+        }
+      ],
+      "@react-native-firebase/messaging",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.791884628850-2qfg8ak77aatafamacav929ol9jvph9f"
+        }
+      ]
     ],
-    "extra": {}
+    "extra": {
+      "eas": {
+        "projectId": "e3e81f6c-8e50-40e3-a2dd-f5364afa2205"
+      }
+    },
+    "updates": {
+      "requestHeaders": {
+        "expo-channel-name": "production"
+      },
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD",
+      "url": "https://u.expo.dev/e3e81f6c-8e50-40e3-a2dd-f5364afa2205"
+    },
+    "owner": "jungeuilab"
   }
 }

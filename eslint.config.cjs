@@ -91,6 +91,13 @@ module.exports = [
         },
       ],
 
+      // JSX 에서만 쓰는 import 를 '미사용' 으로 잡지 않게 한다.
+      // expo 설정은 이 규칙을 warn 으로 두는데, ESLint 9 의 --quiet 는
+      // warn 규칙을 아예 실행하지 않는다. 그러면 JSX 사용 표시가 사라져
+      // unused-imports 가 화면 컴포넌트 import 를 전부 오탐으로 잡는다.
+      "react/jsx-uses-vars": "error",
+      "react/jsx-uses-react": "error",
+
       // React-Native / Metro 호환
       "no-undef": "error",
       "no-var": "error",

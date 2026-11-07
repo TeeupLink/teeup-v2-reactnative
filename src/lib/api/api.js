@@ -126,6 +126,13 @@ async function googleLogin(oauthData) {
   return { ...response, user: response?.user ?? normalized?.user };
 }
 
+async function appleLogin(oauthData) {
+  const response = await apiClient.post(`${AUTH_PREFIX}/oauth/apple/callback`, oauthData, { auth: false });
+  await saveAuthData(response);
+  const normalized = response?.data ?? response;
+  return { ...response, user: response?.user ?? normalized?.user };
+}
+
 async function passwordLogin({ email, password }) {
   const response = await apiClient.post(
     `${AUTH_PREFIX}/login`,
@@ -168,6 +175,7 @@ export const authApi = {
   getCurrentUser,
   checkNickname,
   googleLogin,
+  appleLogin,
   passwordLogin,
   syncPushToken,
   logout,
@@ -251,11 +259,11 @@ async function autoFormTeams(meetingId, data) {
 }
 
 async function getTeamsByMeeting(meetingId) {
-  return apiClient.get('/teams', { params: { meeting_id: meetingId } });
+  return apiClient.get('/teams/', { params: { meeting_id: meetingId } });
 }
 
 async function createTeamByMeeting(meetingId, data) {
-  return apiClient.post('/teams', data, { params: { meeting_id: meetingId } });
+  return apiClient.post('/teams/', data, { params: { meeting_id: meetingId } });
 }
 
 async function updateTeam(teamId, data) {
@@ -638,7 +646,7 @@ async function getTerms(type) {
 }
 
 async function getNotices(params = {}) {
-  return apiClient.get('/notices', { params });
+  return apiClient.get('/notices/', { params });
 }
 
 async function getNotice(id) {
@@ -691,6 +699,37 @@ export const inquiriesApi = {
   getInquiryTypes,
 };
 
+// ── 신고 / 차단 (App Store Guideline 1.2) ──────────────────────────────
+// target_type: CLUB | MEETING | CLUB_NOTICE | REGULATION | USER
+// reason:      SPAM | ABUSE | INAPPROPRIATE | FRAUD | PRIVACY | OTHER
+async function reportContent({ targetType, targetId, reason, description }) {
+  return apiClient.post('/moderation/reports', {
+    target_type: targetType,
+    target_id: targetId,
+    reason,
+    description: description || null,
+  });
+}
+
+async function getBlockedUsers() {
+  return apiClient.get('/moderation/blocks');
+}
+
+async function blockUser(userId) {
+  return apiClient.post(`/moderation/blocks/${userId}`);
+}
+
+async function unblockUser(userId) {
+  return apiClient.delete(`/moderation/blocks/${userId}`);
+}
+
+export const moderationApi = {
+  reportContent,
+  getBlockedUsers,
+  blockUser,
+  unblockUser,
+};
+
 async function getSidoList() {
   return apiClient.get('/sido-list', { auth: false });
 }
@@ -712,7 +751,7 @@ async function registerClubApplication(applicationData) {
 }
 
 async function createClub(data) {
-  return apiClient.post('/clubs', data);
+  return apiClient.post('/clubs/', data);
 }
 
 async function updateClub(clubId, data) {

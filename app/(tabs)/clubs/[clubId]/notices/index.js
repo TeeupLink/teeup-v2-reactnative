@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import ScreenHeader from '@/components/ui/ScreenHeader';
+import { useBlockedUsers } from '@/context/BlockContext';
 import { clubsApi } from '@/lib/api/api';
 import { createFetchNoticesHandler, createNoticePressHandler } from '@/lib/handler/clubs';
 import { normalizeClubNotices } from '@/lib/util/clubUtils';
@@ -62,7 +63,11 @@ export default function ClubNoticesScreen() {
     loadNotices();
   }, [loadNotices]);
 
-  const normalizedNotices = useMemo(() => normalizeClubNotices(notices), [notices]);
+  const { isBlocked } = useBlockedUsers();
+  const normalizedNotices = useMemo(
+    () => normalizeClubNotices(notices).filter((n) => !isBlocked(n.authorId)),
+    [notices, isBlocked],
+  );
   const handleCreatePress = useMemo(
     () => () => {
       router.push(`/clubs/${resolvedId}/notices/create`);

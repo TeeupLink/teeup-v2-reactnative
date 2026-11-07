@@ -20,6 +20,7 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { useAuth } from '@/context/AuthContext';
 import {
+  signInWithApple,
   signInWithGoogle
 } from '@/lib/util/authUtils';
 import { colors } from '@/styles/colors';
@@ -29,14 +30,21 @@ import { base, tokens } from '@/styles/style';
 
 const logoImage = require('../public/icons/icon-512-transparent.png');
 
+// Apple 로그인은 iOS 전용이라 해당 플랫폼에서만 모듈을 로드한다.
+let AppleAuthentication;
+if (Platform.OS === 'ios') {
+  AppleAuthentication = require('expo-apple-authentication');
+}
+
 export default function LoginScreen() {
   const router = useRouter();
   const { refreshAuth } = useAuth();
-  const [reviewerTapCount, setReviewerTapCount] = useState(0);
+  const [_reviewerTapCount, setReviewerTapCount] = useState(0);
   const [errors, setErrors] = useState({
     general: '',
   });
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
+  const [isAppleSigningIn, setIsAppleSigningIn] = useState(false);
 
   const setGeneralError = (message) => {
     setErrors((prev) => ({ ...prev, general: message }));
@@ -47,6 +55,15 @@ export default function LoginScreen() {
       refreshAuth,
       router,
       setLoading: setIsGoogleSigningIn,
+      setErrorMessage: setGeneralError,
+    });
+  };
+
+  const handleAppleSignIn = async () => {
+    await signInWithApple({
+      refreshAuth,
+      router,
+      setLoading: setIsAppleSigningIn,
       setErrorMessage: setGeneralError,
     });
   };
@@ -97,6 +114,16 @@ export default function LoginScreen() {
                 <FontAwesome name="google" size={16} color={colors.white} style={styles.iconGap} />
                 <Text style={styles.primaryButtonText}>Google로 로그인</Text>
               </Button>
+
+              {Platform.OS === 'ios' && AppleAuthentication ? (
+                <AppleAuthentication.AppleAuthenticationButton
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                  cornerRadius={tokens.radius.md}
+                  style={styles.appleButton}
+                  onPress={isAppleSigningIn ? undefined : handleAppleSignIn}
+                />
+              ) : null}
             </Card>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -171,6 +198,10 @@ const styles = StyleSheet.create({
   },
   iconGap: {
     marginRight: tokens.spacing.xs2,
+  },
+  appleButton: {
+    height: 48,
+    marginTop: tokens.spacing.md,
   },
   primaryButtonText: {
     fontSize: tokens.font.lg,

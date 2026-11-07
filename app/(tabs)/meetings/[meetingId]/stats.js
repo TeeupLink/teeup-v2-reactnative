@@ -93,7 +93,10 @@ export default function MeetingStatsScreen() {
             participant?.average_score
         )
       )
-      .filter((value) => Number.isFinite(value));
+      // 점수를 아직 넣지 않은 참가자는 0 으로 들어온다. 그대로 두면
+      // 베스트 스코어가 0 이 되고 평균도 끌어내린다. 골프 스코어에
+      // 0 은 없으므로 양수만 센다.
+      .filter((value) => Number.isFinite(value) && value > 0);
 
     if (scoreValues.length === 0) {
       return { totalStrokes: '-', average: '-', best: '-', worst: '-' };
@@ -115,7 +118,7 @@ export default function MeetingStatsScreen() {
       { id: 'total', label: '총 스트로크', value: scoreSummary.totalStrokes },
       { id: 'avg', label: '평균 스코어', value: scoreSummary.average },
       { id: 'best', label: '베스트 스코어', value: scoreSummary.best },
-      { id: 'worst', label: '최악 홀', value: scoreSummary.worst },
+      { id: 'worst', label: '워스트 스코어', value: scoreSummary.worst },
     ],
     [participants.length, scoreSummary.totalStrokes, scoreSummary.average, scoreSummary.best, scoreSummary.worst, teams.length]
   );

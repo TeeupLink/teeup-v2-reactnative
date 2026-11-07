@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import ModerationMenu from '@/components/moderation/ModerationMenu';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Modal from '@/components/ui/Modal';
@@ -222,7 +223,12 @@ export default function ClubDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScreenHeader title="클럽 상세" />
+      <ScreenHeader
+        title="클럽 상세"
+        rightAction={club?.id ? (
+          <ModerationMenu report={{ targetType: 'CLUB', targetId: club.id, targetName: club.name }} />
+        ) : null}
+      />
       <ScrollView contentContainerStyle={styles.container}>
         {isLoading ? (
           <Card style={styles.heroCard}>

@@ -129,10 +129,6 @@ export function validateProfileForm({
     nextErrors.phone_number = '전화번호를 입력해주세요.';
   }
 
-  if (!formData.birthdate) {
-    nextErrors.birthdate = '생년월일을 선택해주세요.';
-  }
-
   if (!hasFinalAverageScore && shouldValidateAverageScoreInit) {
     const averageScoreInitError = getAverageScoreInitError(formData.average_score_init);
     if (averageScoreInitError) {
@@ -336,17 +332,15 @@ export async function ensureProfileCompleted({
     const {
       realname,
       phone_number,
-      gender,
-      birthdate,
       average_score,
       average_score_init
     } = user;
 
+    // 생년월일·성별은 선택 항목 (App Store 5.1.1: 핵심 기능에 불필요한 개인정보 강제 금지).
+    // 자동 조편성·티박스 구분에만 쓰이며, 없어도 클럽·모임 이용에 지장 없다.
     const requiredFields = [
       realname,
       phone_number,
-      gender,
-      birthdate,
       average_score ?? average_score_init // 평균 타수 둘 중 하나라도 있으면 통과
     ];
 

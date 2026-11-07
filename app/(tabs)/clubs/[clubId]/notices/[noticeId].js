@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import ModerationMenu from '@/components/moderation/ModerationMenu';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import HtmlContent from '@/components/ui/HtmlContent';
@@ -110,7 +111,16 @@ export default function ClubNoticeDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScreenHeader title="공지사항" />
+      <ScreenHeader
+        title="공지사항"
+        rightAction={notice?.id ? (
+          <ModerationMenu
+            report={{ targetType: 'CLUB_NOTICE', targetId: notice.id, targetName: notice?.title }}
+            blockUser={notice?.author_id != null ? { userId: notice.author_id, userName: notice?.author_name } : null}
+            onBlocked={() => router.back()}
+          />
+        ) : null}
+      />
       <ScrollView contentContainerStyle={styles.container}>
         <Card style={styles.card}>
           {isLoading ? (

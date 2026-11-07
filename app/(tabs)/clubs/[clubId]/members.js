@@ -12,11 +12,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import ModerationMenu from '@/components/moderation/ModerationMenu';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Modal from '@/components/ui/Modal';
 import ScreenHeader from '@/components/ui/ScreenHeader';
 import { clubMemberStatusColors } from '@/constants/clubConstants';
+import { useBlockedUsers } from '@/context/BlockContext';
 import { clubsApi } from '@/lib/api/api';
 import { createFetchMembersHandler } from '@/lib/handler/clubs';
 import { buildMemberSummary, normalizeClubMembers } from '@/lib/util/clubUtils';
@@ -162,10 +164,13 @@ export default function ClubMemberManageScreen() {
     }, [membershipLoading, canViewMembers, membershipError, loadMembers])
   );
 
-  const { normalizedMembers, pendingCount } = useMemo(
-    () => normalizeClubMembers(members),
-    [members]
-  );
+  const { isBlocked } = useBlockedUsers();
+  const { normalizedMembers, pendingCount } = useMemo(() => {
+    const result = normalizeClubMembers(members);
+    // 차단한 사용자는 멤버 목록에서 숨긴다 (관리 모드에서는 운영을 위해 그대로 노출)
+    if (isManageMode) return result;
+    return { ...result, normalizedMembers: result.normalizedMembers.filter((m) => !isBlocked(m.userId)) };
+  }, [members, isBlocked, isManageMode]);
 
   const summaryText = useMemo(
     () =>
@@ -328,6 +333,12 @@ export default function ClubMemberManageScreen() {
                 >
                   <Text style={styles.statusText}>{member.statusLabel}</Text>
                 </View>
+                {!isManageMode ? (
+                  <ModerationMenu
+                    report={{ targetType: 'USER', targetId: member.userId, targetName: member.name }}
+                    blockUser={{ userId: member.userId, userName: member.name }}
+                  />
+                ) : null}
                 {isManageMode && !isRoleManageMode && member.isPending ? (
                   <View style={styles.actionButtons}>
                     <Button

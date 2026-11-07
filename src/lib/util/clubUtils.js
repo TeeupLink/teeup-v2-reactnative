@@ -227,6 +227,7 @@ export function buildMemberSummary({ total, pending }) { return `총 ${total}명
 export function normalizeClubNotices(notices) {
   return notices.map((notice) => ({
     id: notice?.id || notice?.notice_id || notice?.title,
+    authorId: notice?.author_id ?? notice?.authorId ?? null,
     title: notice?.title || '공지사항',
     date: notice?.created_at ? notice.created_at.slice(0, 10) : notice?.date || '-',
     pinned: notice?.is_pinned || notice?.is_important || notice?.pinned || false,

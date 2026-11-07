@@ -54,6 +54,20 @@ jest.mock('@/context/AuthContext', () => ({
   }),
 }));
 
+jest.mock('@/context/BlockContext', () => ({
+  BlockProvider: ({ children }) => children,
+  useBlockedUsers: () => ({
+    blockedIds: new Set(),
+    blockedUsers: [],
+    isLoaded: true,
+    isBlocked: () => false,
+    block: jest.fn(),
+    unblock: jest.fn(),
+    refresh: jest.fn(),
+  }),
+  useOptionalBlockedUsers: () => null,
+}));
+
 jest.mock('@/context/AppLayoutContext', () => ({
   useAppLayout: () => ({
     isMenuOpen: false,
@@ -71,3 +85,32 @@ global.fetch = jest.fn(() =>
     text: async () => '',
   }),
 );
+
+// 네이티브 모듈이 필요한 라이브러리는 jest 에서 로드할 수 없다.
+// 화면 렌더 테스트가 전부 여기서 막히므로 가짜 구현을 끼운다.
+
+// 구글 로그인 — RNGoogleSignin 네이티브 바이너리를 찾는다.
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: {
+    configure: jest.fn(),
+    hasPlayServices: jest.fn().mockResolvedValue(true),
+    signIn: jest.fn().mockResolvedValue({ data: null }),
+    signOut: jest.fn().mockResolvedValue(undefined),
+    getTokens: jest.fn().mockResolvedValue({ idToken: '', accessToken: '' }),
+  },
+  statusCodes: {
+    SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED',
+    IN_PROGRESS: 'IN_PROGRESS',
+    PLAY_SERVICES_NOT_AVAILABLE: 'PLAY_SERVICES_NOT_AVAILABLE',
+  },
+}));
+
+// 캐러셀 — react-native-worklets 의 네이티브 초기화를 요구한다.
+jest.mock('react-native-reanimated-carousel', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: ({ children, ...props }) => React.createElement(View, props, children),
+  };
+});
