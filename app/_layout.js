@@ -13,6 +13,7 @@ import { BackHandler, Platform, StyleSheet, ToastAndroid, useWindowDimensions, V
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNavigationBar from '@/components/layout/BottomNavigationBar';
+import ForceUpdateGate from '@/components/layout/ForceUpdateGate';
 import FullMenu from '@/components/layout/FullMenu';
 import GuideBanner, { guideBannerOffset } from '@/components/layout/GuideBanner';
 import { AppLayoutProvider } from '@/context/AppLayoutContext';
@@ -257,6 +258,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
       {!isRootEntry ? <GuideBanner /> : null}
       {!isRootEntry ? <BottomNavigationBar /> : null}
       {!isRootEntry ? <FullMenu /> : null}
+      {/* 강제 업데이트 차단. 다른 요소와 달리 isRootEntry 와 무관하게 항상
+          올린다 - 첫 화면에서도 막혀야 하고, 로그인 전에도 막혀야 한다. */}
+      <ForceUpdateGate />
       {/* !!!!!!!!!!!!!!!!!!!!! 디버그 오버레이 TODO 출시시 삭제 !!!!!!!!!!!!!!!!!!!!!! */}
       {/*<DebugConsoleOverlay />*/}
       {/* !!!!!!!!!!!!!!!!!!!!! 디버그 오버레이 !!!!!!!!!!!!!!!!!!!!!! */}
