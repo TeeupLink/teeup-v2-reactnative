@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { Alert, Platform } from 'react-native';
 import { URLSearchParams } from 'react-native-url-polyfill';
 
+import { getNativeAppVersion } from '../appVersion';
 import { replaceWithPolicy } from '../navigation/cappedHistory';
 import { tokenStorage } from '../tokenStorage';
 
@@ -14,6 +15,11 @@ const API_BASE_URL = extra?.apiBaseUrl;
 
 const isWeb = Platform.OS === 'web';
 const CLIENT_TYPE = isWeb ? 'web' : Platform.OS;
+
+// 백엔드 utils/activity.py 가 이 헤더를 읽어 활동 로그에 남긴다. 그런데
+// 앱이 여태 보내지 않아서 그 칸이 늘 비어 있었다. 어떤 버전이 실제로
+// 돌아다니는지 모르면 강제 업데이트 최소 버전을 어디에 걸지 정할 수 없다.
+const APP_VERSION = getNativeAppVersion();
 
 const sensitiveKeys = ['password', 'token', 'authorization', 'refresh', 'access'];
 const REFRESH_PATH = '/auth/refresh';
@@ -207,6 +213,7 @@ async function apiRequest(path, options = {}) {
     ...(isForm ? {} : { 'Content-Type': 'application/json' }),
     ...headers,
     'X-Client-Type': CLIENT_TYPE,
+    ...(APP_VERSION ? { 'X-App-Version': APP_VERSION } : {}),
   };
 
   if (isWeb && requestHeaders.Authorization) {

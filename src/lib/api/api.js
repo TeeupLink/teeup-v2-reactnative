@@ -746,6 +746,25 @@ export const regionApi = {
   getGunguList,
 };
 
+/**
+ * 강제 업데이트 정책 조회.
+ *
+ * 인증을 걸지 않는다(auth: false). 막힌 사용자는 로그인조차 못 하는
+ * 상태일 수 있다. 401 로 로그인 화면으로 튕기지도 않게 한다 - 이건
+ * 로그인 여부와 무관한 호출이다.
+ */
+async function getAppVersionPolicy({ platform, version } = {}) {
+  return apiClient.get('/app/version', {
+    params: { platform, version: version || undefined },
+    auth: false,
+    redirectOnAuthExpired: false,
+  });
+}
+
+export const appApi = {
+  getVersionPolicy: getAppVersionPolicy,
+};
+
 async function registerClubApplication(applicationData) {
   return apiClient.post('/clubs/register', applicationData);
 }
