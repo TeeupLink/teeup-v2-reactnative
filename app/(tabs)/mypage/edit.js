@@ -31,6 +31,8 @@ import {
   formatDateYYYYMMDD,
   getAverageScoreInitError,
   getBirthDateValue,
+  getMaxBirthDate,
+  getMinBirthDate,
   isNicknameSame as isNicknameSameValue
 } from '@/lib/util/mypageUtils';
 import { extractData } from '@/lib/util/responseUtils';
@@ -53,7 +55,11 @@ export default function UserProfileEditForm({ onMoveToWithdraw }) {
   const [showBirthPicker, setShowBirthPicker] = useState(false);
   // iOS 스피너가 굴러가는 동안의 임시 값. 확정은 '확인' 버튼에서만 한다.
   const [birthDraft, setBirthDraft] = useState(null);
-  const maxBirthDate = useMemo(() => new Date(), []);
+  // 서버와 같은 범위를 선택기에 건다 (만 14세 이상 · 1900년 이후).
+  // 예전에는 maximumDate 가 '오늘' 이어서, 생년월일 선택기가 오늘에서
+  // 시작하고 만 14세 미만도 고를 수 있었다 (저장 때 서버가 400).
+  const maxBirthDate = useMemo(() => getMaxBirthDate(), []);
+  const minBirthDate = useMemo(() => getMinBirthDate(), []);
   const [profile, setProfile] = useState({
     id: null,
     email: '',
@@ -182,6 +188,9 @@ export default function UserProfileEditForm({ onMoveToWithdraw }) {
         const didOpen = openWebDateInput({
           value: currentValue,
           anchorRect,
+          // 서버와 같은 범위. 안 주면 미래 날짜도 고를 수 있고 저장에서 400 이 난다.
+          min: formatDateYYYYMMDD(minBirthDate),
+          max: formatDateYYYYMMDD(maxBirthDate),
           onChange: (nextValue) => {
             if (nextValue) {
               handleInputChange('birthdate', nextValue);
@@ -189,16 +198,22 @@ export default function UserProfileEditForm({ onMoveToWithdraw }) {
           },
         });
         if (!didOpen) {
-          console.warn('웹 날짜 선택기를 열 수 없습니다.');
+          // 예전에는 console.warn 만 남겼다. 사용자에게는 아무 일도 안 일어난
+          // 것과 같아서 "생년월일 선택이 안 된다" 로 보고됐다.
+          setErrors((prev) => ({
+            ...prev,
+            birthdate: '이 브라우저에서 날짜 선택기를 열 수 없습니다. 브라우저를 업데이트하거나 다른 브라우저로 시도해주세요.',
+          }));
         }
       };
     }
     return () => {
-      // 열 때 지금 값에서 시작한다. 값이 없으면 오늘(=최대 선택일)부터 굴린다.
+      // 열 때 지금 값에서 시작한다. 값이 없으면 고를 수 있는 가장 늦은 날
+      // (= 오늘로부터 만 14년 전)부터 굴린다.
       setBirthDraft(getBirthDateValue(formData.birthdate, maxBirthDate));
       setShowBirthPicker(true);
     };
-  }, [setShowBirthPicker, formData.birthdate, handleInputChange, maxBirthDate]);
+  }, [setShowBirthPicker, formData.birthdate, handleInputChange, maxBirthDate, minBirthDate, setErrors]);
 
   const handleBirthPickerChange = useMemo(
     () => createBirthPickerChangeHandler({ setShowBirthPicker, handleInputChange, setBirthDraft }),
@@ -567,6 +582,7 @@ export default function UserProfileEditForm({ onMoveToWithdraw }) {
                       <DateTimePicker
                         value={birthDraft || birthDateValue}
                         mode="date"
+                        minimumDate={minBirthDate}
                         maximumDate={maxBirthDate}
                         display="spinner"
                         onChange={handleBirthPickerChange}
@@ -599,6 +615,7 @@ export default function UserProfileEditForm({ onMoveToWithdraw }) {
                     <DateTimePicker
                       value={birthDateValue}
                       mode="date"
+                      minimumDate={minBirthDate}
                       maximumDate={maxBirthDate}
                       display="default"
                       onChange={handleBirthPickerChange}

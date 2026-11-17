@@ -96,6 +96,52 @@ export function getBirthDateValue(birthdate, fallback) {
   return parsed || fallback;
 };
 
+/* ---------------------------------------------------------------
+   생년월일 허용 범위.
+
+   서버(backend routers/auth.py validate_birthdate)가 PUT /users/me 에서
+   "만 14세 이상 · 1900년 이후 · 미래 아님" 을 강제한다. 프런트가 그 범위를
+   모르면 사용자가 고를 수는 있는데 저장할 때 400 으로 처음 알게 된다.
+   그래서 아예 고를 수 없게 같은 범위를 선택기에도 건다.
+   서버 규칙이 바뀌면 여기도 같이 바꿔야 한다.
+----------------------------------------------------------------- */
+export const BIRTHDATE_MIN_AGE = 14;
+export const BIRTHDATE_MIN_YEAR = 1900;
+
+/** 고를 수 있는 가장 늦은 날 = 오늘로부터 만 14년 전 */
+export function getMaxBirthDate(today = new Date()) {
+  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  d.setFullYear(d.getFullYear() - BIRTHDATE_MIN_AGE);
+  return d;
+};
+
+/** 고를 수 있는 가장 이른 날 */
+export function getMinBirthDate() {
+  return new Date(BIRTHDATE_MIN_YEAR, 0, 1);
+};
+
+/** 저장 직전 확인. 선택기를 거치지 않고 들어온 값(웹 직접 입력 등)도 여기서 걸린다 */
+export function getBirthdateError(birthdate, today = new Date()) {
+  if (!birthdate) return '';           // 선택 항목이므로 비어 있는 건 정상
+
+  const parsed = parseBirthdate(birthdate);
+  if (!parsed || !/^\d{4}-\d{2}-\d{2}$/.test(birthdate)) {
+    return '생년월일을 YYYY-MM-DD 형식으로 입력해주세요.';
+  }
+
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  if (parsed > startOfToday) {
+    return '생년월일은 미래 날짜일 수 없습니다.';
+  }
+  if (parsed.getFullYear() < BIRTHDATE_MIN_YEAR) {
+    return '올바른 생년월일을 입력해주세요.';
+  }
+  if (parsed > getMaxBirthDate(today)) {
+    return `만 ${BIRTHDATE_MIN_AGE}세 이상만 가입할 수 있습니다.`;
+  }
+  return '';
+};
+
 export function isNicknameSame(profileNickname, formNickname) {
   if (!profileNickname) return false;
   return profileNickname === (formNickname || '').trim();
@@ -127,6 +173,12 @@ export function validateProfileForm({
 
   if (!formData.phone_number?.trim()) {
     nextErrors.phone_number = '전화번호를 입력해주세요.';
+  }
+
+  // 생년월일은 선택 항목이지만(App Store 5.1.1), 넣었다면 서버와 같은 범위여야 한다.
+  const birthdateError = getBirthdateError(formData.birthdate);
+  if (birthdateError) {
+    nextErrors.birthdate = birthdateError;
   }
 
   if (!hasFinalAverageScore && shouldValidateAverageScoreInit) {
