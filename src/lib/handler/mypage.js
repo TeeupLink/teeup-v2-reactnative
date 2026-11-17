@@ -205,12 +205,22 @@ export function createCheckNicknameDuplicateHandler({
     };
 }
 
-export function createBirthPickerChangeHandler({ setShowBirthPicker, handleInputChange }) {
+export function createBirthPickerChangeHandler({ setShowBirthPicker, handleInputChange, setBirthDraft }) {
     return (event, selected) => {
-        if (Platform.OS !== 'ios') {
-            setShowBirthPicker(false);
+        // iOS 스피너는 인라인으로 남아 있고 굴리는 동안 onChange 가 계속 온다.
+        // 여기서 formData 를 바꾸면 value 가 다시 내려가 스피너가 제자리로 튕겨
+        // 사실상 선택이 안 된다. 그래서 iOS 는 초안만 바꾸고, 값 확정과 닫기는
+        // '확인' 버튼이 한다. (닫는 경로가 그 버튼뿐이므로 빼면 안 된다)
+        if (Platform.OS === 'ios') {
+            if (selected && typeof setBirthDraft === 'function') {
+                setBirthDraft(selected);
+            }
+            return;
         }
-        if (event.type === 'dismissed') return;
+
+        // Android 는 대화상자라서 한 번 뜨고 닫힌다. 취소('dismissed')든 선택이든 닫는다.
+        setShowBirthPicker(false);
+        if (event?.type === 'dismissed') return;
         if (selected) {
             handleInputChange('birthdate', formatDateYYYYMMDD(selected));
         }
