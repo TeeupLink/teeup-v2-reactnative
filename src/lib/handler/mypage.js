@@ -397,7 +397,14 @@ export function openWebDateInput({ value, onChange, anchorRect, min, max }) {
         input.style.height = '1px';
     }
     input.style.zIndex = '99999';
-    input.style.pointerEvents = 'auto';
+    // 선택기는 showPicker() 로 띄우므로 이 input 이 클릭을 받을 필요가 없다.
+    //
+    // 예전에는 'auto' 였다. showPicker() 는 input 에 포커스를 주지 않아서
+    // onblur 가 영원히 오지 않고, 그래서 cleanup 도 돌지 않는다. 결과적으로
+    // 투명한 input 이 안전장치 타이머(60초)까지 **생년월일 필드를 덮고 앉아**
+    // 그동안 필드를 아무리 눌러도 반응이 없었다. 사용자가 날짜를 고르지 않고
+    // 선택기를 닫으면 바로 이 상태가 된다 — "생년월일 선택이 안 된다".
+    input.style.pointerEvents = 'none';
     input.style.border = 'none';
     input.style.outline = 'none';
     input.style.margin = '0';
@@ -407,6 +414,8 @@ export function openWebDateInput({ value, onChange, anchorRect, min, max }) {
     let isCleanedUp = false;
     let cleanupTimeout = null;
     let changeHandled = false;
+    let showPickerUsed = false;
+    let cleanupListener = null;
 
     const cleanup = () => {
         if (isCleanedUp) return;
@@ -415,6 +424,10 @@ export function openWebDateInput({ value, onChange, anchorRect, min, max }) {
         if (cleanupTimeout) {
             clearTimeout(cleanupTimeout);
             cleanupTimeout = null;
+        }
+        if (cleanupListener) {
+            cleanupListener();
+            cleanupListener = null;
         }
 
         // 선택 직후 클릭이 버튼에 가도록 바로 클릭 차단 해제
@@ -466,6 +479,7 @@ export function openWebDateInput({ value, onChange, anchorRect, min, max }) {
         try {
             input.showPicker();
             opened = true;
+            showPickerUsed = true;
         } catch (pickerError) {
             console.warn('showPicker 실패:', pickerError);
         }
@@ -475,6 +489,8 @@ export function openWebDateInput({ value, onChange, anchorRect, min, max }) {
         // showPicker 가 없거나 거부된 브라우저. 입력란을 실제로 보여 주고
         // 포커스를 줘서 최소한 직접 입력·기본 UI 로 고를 수 있게 한다.
         // (여기서 숨긴 채로 두면 사용자에게는 아무 일도 안 일어난 것과 같다)
+        // 이 경로에서는 사용자가 직접 눌러야 하므로 클릭을 받아야 한다.
+        input.style.pointerEvents = 'auto';
         input.style.opacity = '1';
         input.style.background = '#fff';
         if (anchorRect && typeof anchorRect.left === 'number') {
@@ -496,6 +512,16 @@ export function openWebDateInput({ value, onChange, anchorRect, min, max }) {
     if (!opened) {
         cleanup();
         return false;
+    }
+
+    if (showPickerUsed) {
+        // showPicker 로 열었으면 onblur 가 오지 않는다. 사용자의 다음 누름에
+        // 맞춰 치워서 숨은 input 이 오래 남지 않게 한다. (capture 로 달아
+        // 아래 요소의 핸들러보다 먼저 돌고, 이 input 은 pointerEvents:none
+        // 이므로 이 누름은 원래 목적지로 그대로 간다)
+        const onNextPointerDown = () => cleanup();
+        doc.addEventListener('pointerdown', onNextPointerDown, { capture: true, once: true });
+        cleanupListener = () => doc.removeEventListener('pointerdown', onNextPointerDown, { capture: true });
     }
 
     // 일정 시간 후에도 제거되지 않았으면 강제 제거 (안전장치)
@@ -539,7 +565,10 @@ export function openWebDateTimeInput({ value, onChange, min, anchorRect }) {
     }
     input.style.opacity = '0';
     input.style.zIndex = '99999';
-    input.style.pointerEvents = 'auto';
+    // openWebDateInput 과 같은 이유로 클릭을 받지 않는다. showPicker() 는
+    // 포커스를 주지 않아 onblur 가 오지 않으므로, 'auto' 로 두면 투명한
+    // input 이 안전장치 타이머까지 필드를 덮고 앉아 다음 누름이 먹지 않는다.
+    input.style.pointerEvents = 'none';
     input.style.border = 'none';
     input.style.outline = 'none';
     input.style.margin = '0';
@@ -548,12 +577,18 @@ export function openWebDateTimeInput({ value, onChange, min, anchorRect }) {
 
     let isCleanedUp = false;
     let blurCleanupTimeout = null;
+    let showPickerUsed = false;
+    let cleanupListener = null;
     const cleanup = () => {
         if (isCleanedUp) return;
         isCleanedUp = true;
         if (blurCleanupTimeout) {
             clearTimeout(blurCleanupTimeout);
             blurCleanupTimeout = null;
+        }
+        if (cleanupListener) {
+            cleanupListener();
+            cleanupListener = null;
         }
         input.style.pointerEvents = 'none';
         input.style.visibility = 'hidden';
@@ -586,6 +621,7 @@ export function openWebDateTimeInput({ value, onChange, min, anchorRect }) {
         try {
             input.showPicker();
             opened = true;
+            showPickerUsed = true;
         } catch (pickerError) {
             console.warn('showPicker 실패:', pickerError);
         }
@@ -593,6 +629,7 @@ export function openWebDateTimeInput({ value, onChange, min, anchorRect }) {
 
     if (!opened) {
         // 못 열면 입력란을 실제로 보여 줘서 직접 입력이라도 되게 한다
+        input.style.pointerEvents = 'auto';
         input.style.opacity = '1';
         input.style.background = '#fff';
         if (anchorRect && typeof anchorRect.left === 'number') {
@@ -614,6 +651,12 @@ export function openWebDateTimeInput({ value, onChange, min, anchorRect }) {
     if (!opened) {
         cleanup();
         return false;
+    }
+
+    if (showPickerUsed) {
+        const onNextPointerDown = () => cleanup();
+        doc.addEventListener('pointerdown', onNextPointerDown, { capture: true, once: true });
+        cleanupListener = () => doc.removeEventListener('pointerdown', onNextPointerDown, { capture: true });
     }
 
     setTimeout(() => {

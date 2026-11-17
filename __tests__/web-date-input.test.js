@@ -80,6 +80,46 @@ describe('openWebDateInput', () => {
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 
+  // 실제 브라우저(Playwright/Chromium)로 확인한 내용의 회귀 방지.
+  // 예전에는 pointerEvents 가 'auto' 라서, showPicker 로 열고 사용자가
+  // 고르지 않고 닫으면(onblur 가 오지 않으므로 cleanup 도 안 돌았다)
+  // 투명한 input 이 60초 동안 생년월일 필드를 덮었다. 그동안 필드를
+  // 눌러도 아무 일도 일어나지 않았다 — 제보된 "선택이 안 된다".
+  describe('숨은 input 이 필드를 가리지 않는다', () => {
+    it('showPicker 로 열었으면 클릭을 받지 않는다', () => {
+      openWebDateInput({ value: '', onChange: jest.fn() });
+      expect(el().style.pointerEvents).toBe('none');
+    });
+
+    it('아래에 있는 필드가 계속 클릭을 받는다', () => {
+      const field = document.createElement('button');
+      field.id = 'field';
+      const onFieldClick = jest.fn();
+      field.addEventListener('click', onFieldClick);
+      document.body.appendChild(field);
+
+      openWebDateInput({
+        value: '',
+        anchorRect: { left: 0, top: 0, width: 200, height: 44 },
+        onChange: jest.fn(),
+      });
+
+      field.click();
+      expect(onFieldClick).toHaveBeenCalledTimes(1);
+    });
+
+    it('다음 누름에 스스로 치운다 (60초까지 남지 않는다)', () => {
+      openWebDateInput({ value: '', onChange: jest.fn() });
+      expect(el()).not.toBeNull();
+
+      // jsdom 에는 PointerEvent 생성자가 없다. 이름만 같으면 리스너는 돈다.
+      document.dispatchEvent(new window.Event('pointerdown', { bubbles: true }));
+      jest.advanceTimersByTime(100);
+
+      expect(el()).toBeNull();
+    });
+  });
+
   describe('showPicker 를 쓸 수 없는 브라우저', () => {
     it('showPicker 가 던지면 입력란을 눈에 보이게 남긴다', () => {
       showPicker.mockImplementation(() => {
@@ -93,6 +133,8 @@ describe('openWebDateInput', () => {
       expect(el()).not.toBeNull();
       expect(el().style.opacity).toBe('1');
       expect(el().tabIndex).toBe(0);
+      // 이 경로에서는 사용자가 이 입력란을 직접 눌러야 하므로 클릭을 받아야 한다
+      expect(el().style.pointerEvents).toBe('auto');
     });
 
     it('showPicker 가 아예 없어도 입력란을 보여 준다', () => {
