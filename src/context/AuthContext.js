@@ -39,6 +39,19 @@ export function AuthProvider({ children }) {
         setUser(storedUser);
       }
 
+      // 웹은 토큰이 HttpOnly 쿠키라 JS 가 세션 유무를 직접 볼 수 없다. 그래서
+      // 예전에는 비로그인 방문자도 페이지를 열 때마다 GET /auth/me (401) →
+      // POST /auth/refresh (400 "리프레시 토큰이 필요합니다.") 를 헛되게 두 번
+      // 때렸다. 저장된 사용자가 없다는 건 이 브라우저가 로그인한 적이 없다는
+      // 뜻이므로(로그인 성공 시 saveAuthData 가 tokenStorage.setUser 로 넣는다)
+      // 네이티브의 "토큰 없으면 건너뛰기" 와 같은 식으로 바로 끝낸다.
+      // 세션이 만료된 경우에는 storedUser 가 남아 있어 아래 경로를 그대로 타고,
+      // 실패하면 catch 에서 clearUser 하므로 다음 방문부터는 다시 건너뛴다.
+      if (isWeb && !storedUser) {
+        setUser(null);
+        return null;
+      }
+
       if (!isWeb) {
         const [accessToken, refreshToken] = await Promise.all([
           tokenStorage.getAccessToken(),

@@ -1,5 +1,5 @@
-import { createContext, useContext, useMemo } from 'react';
-import { useWindowDimensions } from 'react-native';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { tokens } from '@/styles/style';
@@ -76,12 +76,49 @@ export const ResponsiveMetricsContext = createContext(
   /** @type {ReturnType<typeof computeResponsiveMetrics> | null} */ (null),
 );
 
+export const ZERO_INSETS = Object.freeze({ top: 0, bottom: 0, left: 0, right: 0 });
+
+/* ---------------------------------------------------------------
+   하이드레이션 안전장치.
+
+   웹 정적 추출(SSR)에는 창 크기도 safe-area 도 없어서 서버는 width/height 를
+   0 으로 렌더한다. 클라이언트 첫 렌더가 곧바로 실제 창 크기를 쓰면 같은 자리에
+   다른 픽셀값이 찍혀 하이드레이션이 깨진다. 실제로 app/_layout.js 의 셸에서
+     SSR : min-height:0px;   max-width:430px   (getShellMaxWidth(0))
+     CLI : min-height:852px; max-width:393px
+   가 나와 모든 페이지에서 React #418 이 떴다. 그러면 React 가 서버가 보낸 DOM 을
+   버리고 전체를 다시 그리므로 SSR 이점이 사라진다.
+
+   그래서 첫 렌더는 서버와 똑같이 0 을 쓰고, 마운트 직후 실제 값으로 넘어간다.
+   네이티브는 SSR 이 없으므로 처음부터 실제 값을 쓴다.
+----------------------------------------------------------------- */
+export function useIsHydrated() {
+  const [hydrated, setHydrated] = useState(Platform.OS !== 'web');
+  useEffect(() => {
+    if (!hydrated) setHydrated(true);
+  }, [hydrated]);
+  return hydrated;
+}
+
+/** safe-area 를 직접 쓰는 곳에서도 첫 렌더는 서버와 같아야 한다 */
+export function useHydrationSafeInsets() {
+  const insets = useSafeAreaInsets();
+  const hydrated = useIsHydrated();
+  return hydrated ? insets : ZERO_INSETS;
+}
+
 export function ResponsiveMetricsProvider({ children }) {
   const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const rawInsets = useSafeAreaInsets();
+  const hydrated = useIsHydrated();
+
+  const w = hydrated ? width : 0;
+  const h = hydrated ? height : 0;
+  const insets = hydrated ? rawInsets : ZERO_INSETS;
+
   const value = useMemo(
-    () => computeResponsiveMetrics(width, height, insets),
-    [width, height, insets.top, insets.bottom, insets.left, insets.right],
+    () => computeResponsiveMetrics(w, h, insets),
+    [w, h, insets.top, insets.bottom, insets.left, insets.right],
   );
   return (
     <ResponsiveMetricsContext.Provider value={value}>{children}</ResponsiveMetricsContext.Provider>
