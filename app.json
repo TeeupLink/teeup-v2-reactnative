@@ -4,7 +4,7 @@
     "shortName": "TeeUp",
     "slug": "teeup",
     "scheme": "teeup",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "icon": "./public/icons/icon-1024.png",
     "userInterfaceStyle": "light",
     "backgroundColor": "#ffffff",
@@ -23,7 +23,7 @@
       "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": false,
       "package": "com.pixencrew.teeup",
-      "versionCode": 6
+      "versionCode": 7
     },
     "web": {
       "bundler": "metro",
@@ -33,7 +33,7 @@
     "ios": {
       "runtimeVersion": "1.0.1",
       "bundleIdentifier": "com.pixencrew.teeup",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "supportsTablet": false,
       "usesAppleSignIn": true,
       "googleServicesFile": "./GoogleService-Info.plist",
