@@ -77,12 +77,12 @@ export default function MyMeetingsScreen() {
     [handleTypeFilterSelect]
   );
   const handleStartPickerChange = useMemo(
-    () => createDatePickerChangeHandler({ setValue: setStartDate, setPage, toYmd }),
-    [setStartDate, setPage]
+    () => createDatePickerChangeHandler({ setValue: setStartDate, setPage, toYmd, setShowPicker: setShowStartPicker }),
+    [setStartDate, setPage, setShowStartPicker]
   );
   const handleEndPickerChange = useMemo(
-    () => createDatePickerChangeHandler({ setValue: setEndDate, setPage, toYmd }),
-    [setEndDate, setPage]
+    () => createDatePickerChangeHandler({ setValue: setEndDate, setPage, toYmd, setShowPicker: setShowEndPicker }),
+    [setEndDate, setPage, setShowEndPicker]
   );
   const openStartPicker = useMemo(
     () =>

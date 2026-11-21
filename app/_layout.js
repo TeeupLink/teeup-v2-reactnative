@@ -9,8 +9,8 @@ import {
 import Head from 'expo-router/head';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
-import { BackHandler, Platform, StyleSheet, ToastAndroid, useWindowDimensions, View } from 'react-native';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BackHandler, Platform, StyleSheet, ToastAndroid, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import BottomNavigationBar from '@/components/layout/BottomNavigationBar';
 import ForceUpdateGate from '@/components/layout/ForceUpdateGate';
@@ -20,7 +20,7 @@ import { AppLayoutProvider } from '@/context/AppLayoutContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { BlockProvider } from '@/context/BlockContext';
 import { authApi } from '@/lib/api/api';
-import { ResponsiveMetricsProvider, useResponsiveMetrics } from '@/lib/layout/responsiveMetrics';
+import { ResponsiveMetricsProvider, useHydrationSafeInsets, useResponsiveMetrics } from '@/lib/layout/responsiveMetrics';
 import { backOrHome, getHistorySnapshot, markHistoryTraversal, navigateWithCap, syncRouteHistory } from '@/lib/navigation/cappedHistory';
 import { colors } from '@/styles/colors';
 
@@ -95,9 +95,8 @@ function buildRouteWithSearch(pathname, params) {
 
 function AppShell() {
   const metrics = useResponsiveMetrics();
-  const { width: windowWidth } = useWindowDimensions();
   const shellMaxWidth = Platform.OS === 'web' ? metrics.shellMaxWidth : undefined;
-  const insets = useSafeAreaInsets();
+  const insets = useHydrationSafeInsets();
   const pathname = usePathname();
   const globalSearchParams = useGlobalSearchParams();
   const router = useRouter();

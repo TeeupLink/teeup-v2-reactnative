@@ -3,6 +3,7 @@ import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { bottomNavHeight } from '@/components/layout/BottomNavigationBar';
+import { useIsHydrated } from '@/lib/layout/responsiveMetrics';
 import { colors } from '@/styles/colors';
 import { tokens } from '@/styles/style';
 
@@ -24,6 +25,9 @@ export function openGuide() {
 }
 
 export default function GuideBanner() {
+  // 아이콘 폰트가 서버에서 로드돼 있지 않아 하이드레이션이 깨진다. ScreenHeader·
+  // BottomNavigationBar 와 같은 방식으로 마운트 후에만 그린다.
+  const hydrated = useIsHydrated();
   const insets = useSafeAreaInsets();
 
   return (
@@ -35,11 +39,11 @@ export default function GuideBanner() {
         accessibilityLabel="사용설명서 열기"
       >
         <View style={styles.iconWrap}>
-          <FontAwesome5 name="book-open" size={12} color={colors.primary[600]} />
+          {hydrated ? <FontAwesome5 name="book-open" size={12} color={colors.primary[600]} /> : null}
         </View>
         <Text style={styles.text}>티업링크 사용설명서</Text>
         <Text style={styles.subText}>처음이신가요?</Text>
-        <FontAwesome5 name="external-link-alt" size={11} color={colors.neutral[400]} />
+        {hydrated ? <FontAwesome5 name="external-link-alt" size={11} color={colors.neutral[400]} /> : null}
       </Pressable>
     </View>
   );

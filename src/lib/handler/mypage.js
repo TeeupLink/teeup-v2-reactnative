@@ -665,12 +665,23 @@ export function openWebDateTimeInput({ value, onChange, min, anchorRect }) {
     return true;
 }
 
-export function createDatePickerChangeHandler({ setValue, setPage, toYmd }) {
+/**
+ * 조회 기간 날짜 선택기의 onChange.
+ *
+ * iOS 선택기는 인라인으로 렌더되고 스스로 사라지지 않는다. 예전에는 이 핸들러가
+ * setShowPicker(false) 를 아예 부르지 않아서, 한 번 열면 화면에 영구히 남았다
+ * (Android 는 DateTimePickerAndroid.open 이 네이티브 대화상자를 쓰므로 영향 없음).
+ *
+ * setShowPicker / setPage 는 없어도 된다. Android 경로처럼 닫을 대상이나
+ * 페이지 상태가 없는 호출자도 그대로 쓸 수 있다.
+ */
+export function createDatePickerChangeHandler({ setValue, setPage, toYmd, setShowPicker }) {
     return (event, date) => {
+        if (typeof setShowPicker === 'function') setShowPicker(false);
         if (event?.type === 'dismissed') return;
         if (!date) return;
         setValue(toYmd(date));
-        setPage(1);
+        if (typeof setPage === 'function') setPage(1);
     };
 }
 
