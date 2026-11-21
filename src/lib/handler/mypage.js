@@ -205,12 +205,22 @@ export function createCheckNicknameDuplicateHandler({
     };
 }
 
-export function createBirthPickerChangeHandler({ setShowBirthPicker, handleInputChange }) {
+export function createBirthPickerChangeHandler({ setShowBirthPicker, handleInputChange, setBirthDraft }) {
     return (event, selected) => {
-        if (Platform.OS !== 'ios') {
-            setShowBirthPicker(false);
+        // iOS 스피너는 인라인으로 남아 있고 굴리는 동안 onChange 가 계속 온다.
+        // 여기서 formData 를 바꾸면 value 가 다시 내려가 스피너가 제자리로 튕겨
+        // 사실상 선택이 안 된다. 그래서 iOS 는 초안만 바꾸고, 값 확정과 닫기는
+        // '확인' 버튼이 한다. (닫는 경로가 그 버튼뿐이므로 빼면 안 된다)
+        if (Platform.OS === 'ios') {
+            if (selected && typeof setBirthDraft === 'function') {
+                setBirthDraft(selected);
+            }
+            return;
         }
-        if (event.type === 'dismissed') return;
+
+        // Android 는 대화상자라서 한 번 뜨고 닫힌다. 취소('dismissed')든 선택이든 닫는다.
+        setShowBirthPicker(false);
+        if (event?.type === 'dismissed') return;
         if (selected) {
             handleInputChange('birthdate', formatDateYYYYMMDD(selected));
         }
@@ -350,7 +360,7 @@ export function getMyPageTabContent({ activeTab, tabs }) {
             return tabs.overview;
     }
 };
-export function openWebDateInput({ value, onChange, anchorRect, min }) {
+export function openWebDateInput({ value, onChange, anchorRect, min, max }) {
     const doc = globalThis?.document;
     if (!doc || typeof doc.createElement !== 'function') return false;
 
@@ -365,6 +375,9 @@ export function openWebDateInput({ value, onChange, anchorRect, min }) {
     input.type = 'date';
     input.value = value || '';
     if (min) input.min = min;
+    // 범위를 안 주면 미래 날짜나 만 14세 미만도 고를 수 있고, 저장할 때
+    // 서버가 400 으로 거절해서 그때 처음 알게 된다.
+    if (max) input.max = max;
     input.style.position = 'fixed';
     if (anchorRect && typeof anchorRect.left === 'number' && typeof anchorRect.top === 'number') {
         input.style.left = `${anchorRect.left}px`;
@@ -384,7 +397,14 @@ export function openWebDateInput({ value, onChange, anchorRect, min }) {
         input.style.height = '1px';
     }
     input.style.zIndex = '99999';
-    input.style.pointerEvents = 'auto';
+    // 선택기는 showPicker() 로 띄우므로 이 input 이 클릭을 받을 필요가 없다.
+    //
+    // 예전에는 'auto' 였다. showPicker() 는 input 에 포커스를 주지 않아서
+    // onblur 가 영원히 오지 않고, 그래서 cleanup 도 돌지 않는다. 결과적으로
+    // 투명한 input 이 안전장치 타이머(60초)까지 **생년월일 필드를 덮고 앉아**
+    // 그동안 필드를 아무리 눌러도 반응이 없었다. 사용자가 날짜를 고르지 않고
+    // 선택기를 닫으면 바로 이 상태가 된다 — "생년월일 선택이 안 된다".
+    input.style.pointerEvents = 'none';
     input.style.border = 'none';
     input.style.outline = 'none';
     input.style.margin = '0';
@@ -394,6 +414,8 @@ export function openWebDateInput({ value, onChange, anchorRect, min }) {
     let isCleanedUp = false;
     let cleanupTimeout = null;
     let changeHandled = false;
+    let showPickerUsed = false;
+    let cleanupListener = null;
 
     const cleanup = () => {
         if (isCleanedUp) return;
@@ -402,6 +424,10 @@ export function openWebDateInput({ value, onChange, anchorRect, min }) {
         if (cleanupTimeout) {
             clearTimeout(cleanupTimeout);
             cleanupTimeout = null;
+        }
+        if (cleanupListener) {
+            cleanupListener();
+            cleanupListener = null;
         }
 
         // 선택 직후 클릭이 버튼에 가도록 바로 클릭 차단 해제
@@ -440,52 +466,63 @@ export function openWebDateInput({ value, onChange, anchorRect, min }) {
     // DOM에 추가
     doc.body.appendChild(input);
 
-    // 클릭 이벤트 트리거
-    setTimeout(() => {
+    // DOM 에 붙인 뒤 **같은 호출 스택에서 바로** 선택기를 연다.
+    //
+    // showPicker() 는 사용자 제스처(transient activation)가 살아 있을 때만
+    // 허용된다. 예전에는 setTimeout(100) 안에서 불렀는데, 그러면 제스처를
+    // 잃은 브라우저에서 NotAllowedError 가 나고 아래 click 대체 경로도
+    // 프로그램적 click 이라 날짜 선택기를 열지 못한다. 결과는 "눌렀는데
+    // 아무 일도 안 일어난다" 였고, 함수가 항상 true 를 돌려줘서 호출자도
+    // 실패를 알 수 없었다.
+    let opened = false;
+    if (typeof input.showPicker === 'function') {
         try {
-            // showPicker API 사용 (최신 브라우저) - 가장 안정적
-            // showPicker는 onblur를 발생시키지 않고, 날짜 선택기가 열린 상태를 유지
-            if (typeof input.showPicker === 'function') {
-                try {
-                    const pickerResult = input.showPicker();
-                    // showPicker가 Promise를 반환하는 경우
-                    if (pickerResult && typeof pickerResult.catch === 'function') {
-                        pickerResult.catch((error) => {
-                            // showPicker 실패 시 click 사용
-                            console.warn('showPicker 실패, click 사용:', error);
-                            setTimeout(() => {
-                                if (!isCleanedUp && input.parentNode) {
-                                    input.focus();
-                                    input.click();
-                                }
-                            }, 50);
-                        });
-                    }
-                    // showPicker가 Promise를 반환하지 않는 경우 (성공으로 간주)
-                } catch (pickerError) {
-                    // showPicker 호출 자체가 실패한 경우 click 사용
-                    console.warn('showPicker 호출 실패, click 사용:', pickerError);
-                    setTimeout(() => {
-                        if (!isCleanedUp && input.parentNode) {
-                            input.focus();
-                            input.click();
-                        }
-                    }, 50);
-                }
-            } else {
-                // showPicker를 지원하지 않으면 click 사용
-                input.focus();
-                setTimeout(() => {
-                    if (!isCleanedUp && input.parentNode) {
-                        input.click();
-                    }
-                }, 50);
-            }
-        } catch (error) {
-            console.warn('날짜 선택기 열기 실패:', error);
-            cleanup();
+            input.showPicker();
+            opened = true;
+            showPickerUsed = true;
+        } catch (pickerError) {
+            console.warn('showPicker 실패:', pickerError);
         }
-    }, 100);
+    }
+
+    if (!opened) {
+        // showPicker 가 없거나 거부된 브라우저. 입력란을 실제로 보여 주고
+        // 포커스를 줘서 최소한 직접 입력·기본 UI 로 고를 수 있게 한다.
+        // (여기서 숨긴 채로 두면 사용자에게는 아무 일도 안 일어난 것과 같다)
+        // 이 경로에서는 사용자가 직접 눌러야 하므로 클릭을 받아야 한다.
+        input.style.pointerEvents = 'auto';
+        input.style.opacity = '1';
+        input.style.background = '#fff';
+        if (anchorRect && typeof anchorRect.left === 'number') {
+            input.style.width = `${Math.max(1, anchorRect.width || 1)}px`;
+            input.style.height = `${Math.max(1, anchorRect.height || 1)}px`;
+        } else {
+            input.style.width = '220px';
+            input.style.height = '40px';
+        }
+        input.tabIndex = 0;
+        try {
+            input.focus();
+            opened = true;
+        } catch (focusError) {
+            console.warn('날짜 입력란 포커스 실패:', focusError);
+        }
+    }
+
+    if (!opened) {
+        cleanup();
+        return false;
+    }
+
+    if (showPickerUsed) {
+        // showPicker 로 열었으면 onblur 가 오지 않는다. 사용자의 다음 누름에
+        // 맞춰 치워서 숨은 input 이 오래 남지 않게 한다. (capture 로 달아
+        // 아래 요소의 핸들러보다 먼저 돌고, 이 input 은 pointerEvents:none
+        // 이므로 이 누름은 원래 목적지로 그대로 간다)
+        const onNextPointerDown = () => cleanup();
+        doc.addEventListener('pointerdown', onNextPointerDown, { capture: true, once: true });
+        cleanupListener = () => doc.removeEventListener('pointerdown', onNextPointerDown, { capture: true });
+    }
 
     // 일정 시간 후에도 제거되지 않았으면 강제 제거 (안전장치)
     setTimeout(() => {
@@ -528,7 +565,10 @@ export function openWebDateTimeInput({ value, onChange, min, anchorRect }) {
     }
     input.style.opacity = '0';
     input.style.zIndex = '99999';
-    input.style.pointerEvents = 'auto';
+    // openWebDateInput 과 같은 이유로 클릭을 받지 않는다. showPicker() 는
+    // 포커스를 주지 않아 onblur 가 오지 않으므로, 'auto' 로 두면 투명한
+    // input 이 안전장치 타이머까지 필드를 덮고 앉아 다음 누름이 먹지 않는다.
+    input.style.pointerEvents = 'none';
     input.style.border = 'none';
     input.style.outline = 'none';
     input.style.margin = '0';
@@ -537,12 +577,18 @@ export function openWebDateTimeInput({ value, onChange, min, anchorRect }) {
 
     let isCleanedUp = false;
     let blurCleanupTimeout = null;
+    let showPickerUsed = false;
+    let cleanupListener = null;
     const cleanup = () => {
         if (isCleanedUp) return;
         isCleanedUp = true;
         if (blurCleanupTimeout) {
             clearTimeout(blurCleanupTimeout);
             blurCleanupTimeout = null;
+        }
+        if (cleanupListener) {
+            cleanupListener();
+            cleanupListener = null;
         }
         input.style.pointerEvents = 'none';
         input.style.visibility = 'hidden';
@@ -565,35 +611,54 @@ export function openWebDateTimeInput({ value, onChange, min, anchorRect }) {
     };
 
     doc.body.appendChild(input);
-    setTimeout(() => {
+
+    // openWebDateInput 과 같은 이유로 **같은 호출 스택에서 바로** 연다.
+    // showPicker 는 사용자 제스처가 살아 있어야 허용되고, 타이머로 미루면
+    // 거부하는 브라우저가 있다. 거부되면 프로그램적 click 으로는 못 열어서
+    // "눌렀는데 아무 일도 안 일어난다" 가 된다. (라운딩·모임 등록 날짜 입력)
+    let opened = false;
+    if (typeof input.showPicker === 'function') {
         try {
-            if (typeof input.showPicker === 'function') {
-                try {
-                    const r = input.showPicker();
-                    if (r && typeof r.catch === 'function') {
-                        r.catch(() => {
-                            if (!isCleanedUp && input.parentNode) {
-                                input.focus();
-                                input.click();
-                            }
-                        });
-                    }
-                } catch {
-                    if (!isCleanedUp && input.parentNode) {
-                        input.focus();
-                        input.click();
-                    }
-                }
-            } else {
-                input.focus();
-                setTimeout(() => {
-                    if (!isCleanedUp && input.parentNode) input.click();
-                }, 50);
-            }
-        } catch {
-            cleanup();
+            input.showPicker();
+            opened = true;
+            showPickerUsed = true;
+        } catch (pickerError) {
+            console.warn('showPicker 실패:', pickerError);
         }
-    }, 100);
+    }
+
+    if (!opened) {
+        // 못 열면 입력란을 실제로 보여 줘서 직접 입력이라도 되게 한다
+        input.style.pointerEvents = 'auto';
+        input.style.opacity = '1';
+        input.style.background = '#fff';
+        if (anchorRect && typeof anchorRect.left === 'number') {
+            input.style.width = `${Math.max(1, anchorRect.width || 1)}px`;
+            input.style.height = `${Math.max(1, anchorRect.height || 1)}px`;
+        } else {
+            input.style.width = '240px';
+            input.style.height = '40px';
+        }
+        input.tabIndex = 0;
+        try {
+            input.focus();
+            opened = true;
+        } catch (focusError) {
+            console.warn('날짜/시간 입력란 포커스 실패:', focusError);
+        }
+    }
+
+    if (!opened) {
+        cleanup();
+        return false;
+    }
+
+    if (showPickerUsed) {
+        const onNextPointerDown = () => cleanup();
+        doc.addEventListener('pointerdown', onNextPointerDown, { capture: true, once: true });
+        cleanupListener = () => doc.removeEventListener('pointerdown', onNextPointerDown, { capture: true });
+    }
+
     setTimeout(() => {
         if (!isCleanedUp && input.parentNode) cleanup();
     }, 60000);

@@ -31,6 +31,8 @@ import {
   formatDateYYYYMMDD,
   getAverageScoreInitError,
   getBirthDateValue,
+  getMaxBirthDate,
+  getMinBirthDate,
   isNicknameSame as isNicknameSameValue
 } from '@/lib/util/mypageUtils';
 import { extractData } from '@/lib/util/responseUtils';
@@ -51,7 +53,13 @@ export default function UserProfileEditForm({ onMoveToWithdraw }) {
   const safeAreaEdges = pathname === '/mypage/edit' && Platform.OS !== 'web' ? ['top'] : [];
   const [isNameComposing, setIsNameComposing] = useState(false);
   const [showBirthPicker, setShowBirthPicker] = useState(false);
-  const maxBirthDate = useMemo(() => new Date(), []);
+  // iOS 스피너가 굴러가는 동안의 임시 값. 확정은 '확인' 버튼에서만 한다.
+  const [birthDraft, setBirthDraft] = useState(null);
+  // 서버와 같은 범위를 선택기에 건다 (만 14세 이상 · 1900년 이후).
+  // 예전에는 maximumDate 가 '오늘' 이어서, 생년월일 선택기가 오늘에서
+  // 시작하고 만 14세 미만도 고를 수 있었다 (저장 때 서버가 400).
+  const maxBirthDate = useMemo(() => getMaxBirthDate(), []);
+  const minBirthDate = useMemo(() => getMinBirthDate(), []);
   const [profile, setProfile] = useState({
     id: null,
     email: '',
@@ -180,6 +188,9 @@ export default function UserProfileEditForm({ onMoveToWithdraw }) {
         const didOpen = openWebDateInput({
           value: currentValue,
           anchorRect,
+          // 서버와 같은 범위. 안 주면 미래 날짜도 고를 수 있고 저장에서 400 이 난다.
+          min: formatDateYYYYMMDD(minBirthDate),
+          max: formatDateYYYYMMDD(maxBirthDate),
           onChange: (nextValue) => {
             if (nextValue) {
               handleInputChange('birthdate', nextValue);
@@ -187,19 +198,39 @@ export default function UserProfileEditForm({ onMoveToWithdraw }) {
           },
         });
         if (!didOpen) {
-          console.warn('웹 날짜 선택기를 열 수 없습니다.');
+          // 예전에는 console.warn 만 남겼다. 사용자에게는 아무 일도 안 일어난
+          // 것과 같아서 "생년월일 선택이 안 된다" 로 보고됐다.
+          setErrors((prev) => ({
+            ...prev,
+            birthdate: '이 브라우저에서 날짜 선택기를 열 수 없습니다. 브라우저를 업데이트하거나 다른 브라우저로 시도해주세요.',
+          }));
         }
       };
     }
     return () => {
+      // 열 때 지금 값에서 시작한다. 값이 없으면 고를 수 있는 가장 늦은 날
+      // (= 오늘로부터 만 14년 전)부터 굴린다.
+      setBirthDraft(getBirthDateValue(formData.birthdate, maxBirthDate));
       setShowBirthPicker(true);
     };
-  }, [setShowBirthPicker, formData.birthdate, handleInputChange]);
+  }, [setShowBirthPicker, formData.birthdate, handleInputChange, maxBirthDate, minBirthDate, setErrors]);
 
   const handleBirthPickerChange = useMemo(
-    () => createBirthPickerChangeHandler({ setShowBirthPicker, handleInputChange }),
+    () => createBirthPickerChangeHandler({ setShowBirthPicker, handleInputChange, setBirthDraft }),
     [handleInputChange, setShowBirthPicker],
   );
+
+  const confirmBirthPicker = useCallback(() => {
+    if (birthDraft) {
+      handleInputChange('birthdate', formatDateYYYYMMDD(birthDraft));
+    }
+    setShowBirthPicker(false);
+  }, [birthDraft, handleInputChange]);
+
+  const cancelBirthPicker = useCallback(() => {
+    setBirthDraft(null);
+    setShowBirthPicker(false);
+  }, []);
 
   const handleCompositionEnd = useMemo(
     () => createCompositionEndHandler({
@@ -544,19 +575,52 @@ export default function UserProfileEditForm({ onMoveToWithdraw }) {
                     <FontAwesome5 name="calendar-alt" size={16} color={colors.neutral[500]} style={styles.dateInputIcon} />
                   </Pressable>
 
-                  {showBirthPicker && (
+                  {showBirthPicker && (Platform.OS === 'ios' ? (
+                    // iOS 스피너는 인라인으로 뜨고 스스로 닫히지 않는다.
+                    // 확인/취소가 없으면 한 번 열면 빠져나올 수 없다.
+                    <View style={styles.birthPickerIos}>
+                      <DateTimePicker
+                        value={birthDraft || birthDateValue}
+                        mode="date"
+                        minimumDate={minBirthDate}
+                        maximumDate={maxBirthDate}
+                        display="spinner"
+                        onChange={handleBirthPickerChange}
+                      />
+                      <View style={styles.birthPickerActions}>
+                        <Pressable
+                          onPress={cancelBirthPicker}
+                          accessibilityRole="button"
+                          style={({ pressed }) => [
+                            styles.birthPickerButton,
+                            pressed && styles.inputPressed,
+                          ]}
+                        >
+                          <Text style={styles.birthPickerCancelText}>취소</Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={confirmBirthPicker}
+                          accessibilityRole="button"
+                          style={({ pressed }) => [
+                            styles.birthPickerButton,
+                            styles.birthPickerConfirm,
+                            pressed && styles.inputPressed,
+                          ]}
+                        >
+                          <Text style={styles.birthPickerConfirmText}>확인</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  ) : (
                     <DateTimePicker
                       value={birthDateValue}
                       mode="date"
+                      minimumDate={minBirthDate}
                       maximumDate={maxBirthDate}
-                      display={
-                        Platform.OS === 'ios'
-                          ? 'spinner'
-                          : 'default'
-                      }
+                      display="default"
                       onChange={handleBirthPickerChange}
                     />
-                  )}
+                  ))}
                 </>
               )}
 
@@ -784,6 +848,33 @@ const styles = StyleSheet.create({
   },
   inputLikeText: { fontSize: tokens.font.base, color: colors.neutral[900], flex: 1, marginRight: tokens.spacing.xs },
   inputPressed: { opacity: 0.9 },
+
+  birthPickerIos: {
+    marginTop: tokens.spacing.xs,
+    borderWidth: 1,
+    borderRadius: tokens.radius.base,
+    borderColor: colors.neutral[300],
+    backgroundColor: colors.white,
+  },
+  birthPickerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: tokens.spacing.xs,
+    paddingHorizontal: tokens.padding.sm,
+    paddingVertical: tokens.padding.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral[200],
+  },
+  birthPickerButton: {
+    paddingHorizontal: tokens.padding.base,
+    paddingVertical: tokens.padding.sm,
+    borderRadius: tokens.radius.base,
+    minWidth: 72,
+    alignItems: 'center',
+  },
+  birthPickerConfirm: { backgroundColor: colors.primary[500] },
+  birthPickerCancelText: { fontSize: tokens.font.base, color: colors.neutral[600] },
+  birthPickerConfirmText: { fontSize: tokens.font.base, color: colors.white, fontWeight: '600' },
 
   inputNormal: { borderColor: colors.neutral[300] },
   inputError: {
