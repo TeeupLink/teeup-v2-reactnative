@@ -16,7 +16,7 @@ import Card from '@/components/ui/Card';
 import ScreenHeader from '@/components/ui/ScreenHeader';
 import { clubsApi } from '@/lib/api/api';
 import { createFetchStatsHandler } from '@/lib/handler/clubs';
-import { openWebDateInput } from '@/lib/handler/mypage';
+import { createDatePickerChangeHandler, openWebDateInput } from '@/lib/handler/mypage';
 import { fromYmd, toYmd } from '@/lib/util/mypageUtils';
 import { extractData } from '@/lib/util/responseUtils';
 import { colors } from '@/styles/colors';
@@ -104,11 +104,16 @@ export default function ClubStatsScreen() {
     setPickDate((prev) => prev || toYmd(new Date()));
   }, [period]);
 
-  const handlePickChange = (e, date) => {
-    if (Platform.OS === 'android') setShowPickPicker(false);
-    if (e?.type === 'dismissed' || !date) return;
-    setPickDate(toYmd(date));
-  };
+  // iOS 선택기는 인라인이라 스스로 사라지지 않는다. 예전에는 Android 에서만 닫아서
+  // iOS 는 한 번 열면 화면에 계속 남았다. 공유 핸들러가 양쪽을 다 처리한다.
+  const handlePickChange = useMemo(
+    () => createDatePickerChangeHandler({
+      setValue: setPickDate,
+      toYmd,
+      setShowPicker: setShowPickPicker,
+    }),
+    [],
+  );
 
   const handleOpenDatePicker = (e) => {
     if (Platform.OS === 'web') {
